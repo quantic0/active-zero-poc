@@ -14,20 +14,35 @@ A arquitetura foi projetada sob o princípio de **Zero Data Leak** via infraestr
 3. **Cadeia de Custódia (Cryptographic Hashing):** Após a decisão heurística do LLM, um "Supervisor Determinístico" gera um hash SHA-256 amarrado à decisão e ao timestamp (baseado no conceito RFC 3161). 
 
 ## 🔄 Fluxo de Dados (Pipeline)
+```mermaid
+graph TD
+    subgraph Edge Environment [Ambiente Local / Off-Grid]
+        direction TB
+        A[Documento Sensível PDF/Docx] -->|Data Parsing| B(Motor de Extração Local)
+        B -->|Texto Estruturado| C{LLM Local - Qwen/Llama}
+        
+        C -->|Prompt de Validação OFAC| D[Extração Heurística / JSON]
+        
+        D -->|Supervisão & Regex| E(Supervisor Determinístico)
+        E -->|Validação Aprovada| F[Geração de Assinatura SHA-256]
+        E -->|Validação Reprovada| G[Alerta de Risco]
+        
+        F -->|Timestamp RFC 3161| H[(Evidência Auditável .json)]
+    end
 
-[ Documento Sensível (PDF) ] 
-       │
-       ▼ (Extração Local)
-[ Camada de Texto ] 
-       │
-       ▼ (Prompt de Validação de Regras de Negócio)
-[ Edge LLM (Quantizado em 4-bit) ] ---> [ Sem Acesso à Internet ]
-       │
-       ▼ (Extração de JSON e Decisão Heurística)
-[ Supervisor Determinístico (Python) ]
-       │
-       ▼ (Geração de Assinatura + Timestamp)
-[ Arquivo de Evidência Auditável (.JSON / Hash) ]
+    subgraph Internet Pública
+        I[APIs de Nuvem Pública / OpenAI]
+    end
+
+    C -.->|Firewall / Air-gapped| I
+    
+    classDef secure fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#e2e8f0;
+    classDef danger fill:#7f1d1d,stroke:#f87171,stroke-width:2px,color:#fca5a5;
+    classDef process fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#f8fafc;
+    
+    class Edge Environment secure;
+    class I danger;
+    class B,C,D,E,F process;
 
 ## 🛠️ Stack Tecnológico Utilizado
 * **Linguagem Base:** Python 3
